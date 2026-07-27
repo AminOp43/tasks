@@ -1,0 +1,14 @@
+# GoLand
+.idea/
+
+# ویندوز
+*.exe
+*.log
+*.tmp
+
+# مک
+.DS_Store
+
+# لینوکس
+*.out
+*.swp
