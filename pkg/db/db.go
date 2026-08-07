@@ -3,15 +3,14 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"log"
-
 	_ "github.com/lib/pq"
+	"log"
 )
 
 var DB *sql.DB
 
 func InitDB() *sql.DB {
-	connStr := "user=postgres dbname=messages_db password=12345678 sslmode=disable"
+	connStr := "user=postgres dbname=test_db password=12345678 sslmode=disable"
 	var err error
 	DB, err = sql.Open("postgres", connStr)
 	if err != nil {

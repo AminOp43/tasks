@@ -3,9 +3,10 @@ package domain
 import "time"
 
 type Task struct {
-	ID          int       `json:"id"`
-	Title       string    `json:"text"`
-	Description string    `json:"desc"`
+	ID          int64     `json:"id"`
+	UserID      int64     `json:"_"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
 	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"creates_at"`
+	CreatedAt   time.Time `json:"created_at"`
 }

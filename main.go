@@ -2,6 +2,7 @@ package main
 
 import (
 	"Tamrin/tasks/internal/handler"
+	"Tamrin/tasks/internal/middleware"
 	"Tamrin/tasks/internal/repository/postgres"
 	"Tamrin/tasks/internal/service"
 	"Tamrin/tasks/pkg/db"
@@ -12,20 +13,34 @@ import (
 
 func main() {
 	newDb := db.InitDB()
-	repoNew := postgres.NewRepo(newDb)
-	newTaskService := service.NewTaskService(repoNew)
+	taskRepo := postgres.NewRepo(newDb)
+	userRepo := postgres.NewUserRepo(newDb)
+
+	newTaskService := service.NewTaskService(taskRepo)
+	newUserService := service.NewUserServ(userRepo)
+
 	taskHandler := handler.NewTaskHandler(newTaskService)
+	userHandler := handler.NewUserHandler(newUserService)
+
 	r := gin.Default()
+	tasks := r.Group("/tasks")
+	tasks.Use(middleware.AuthMiddleware)
+
+	tasks.GET("", taskHandler.GetAll)
+	tasks.POST("", taskHandler.Create)
+	tasks.GET("/:id", taskHandler.GetById)
+	tasks.PUT("/:id", taskHandler.Update)
+	tasks.DELETE("/:id", taskHandler.Delete)
+
 	r.Use(func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
 		defer cancel()
 		c.Request = c.Request.WithContext(ctx)
 		c.Next()
 	})
-	r.GET("/tasks", taskHandler.GetAll)
-	r.POST("/tasks", taskHandler.Create)
-	r.GET("/tasks/:id", taskHandler.GetById)
-	r.PUT("/tasks/:id", taskHandler.Update)
-	r.DELETE("/tasks/:id", taskHandler.Delete)
+
+	r.POST("/user/signup", userHandler.SignUp)
+	r.POST("/user/login", userHandler.Login)
+
 	r.Run(":8080")
 }

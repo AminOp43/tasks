@@ -1,14 +1,14 @@
 # GoLand
 .idea/
 
-# ویندوز
+# Windows
 *.exe
 *.log
 *.tmp
 
-# مک
+# Mac
 .DS_Store
 
-# لینوکس
+# Linux
 *.out
 *.swp
