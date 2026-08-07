@@ -1,9 +1,11 @@
 package middleware
 
 import (
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -27,7 +29,12 @@ func AuthMiddleware(c *gin.Context) {
 		tokenString,
 		claims,
 		func(token *jwt.Token) (any, error) {
-			return []byte("my-jwt-secret"), nil
+			secret := os.Getenv("JWT_SECRET")
+			if secret == "" {
+				return nil, errors.New("JWT_SECRET is not configured")
+			}
+
+			return []byte(secret), nil
 		},
 	)
 

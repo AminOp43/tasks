@@ -7,6 +7,7 @@ import (
 	"errors"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+	"os"
 	"time"
 )
 
@@ -44,7 +45,11 @@ func (u *UserServ) Login(ctx context.Context, req domain.AuthRequest) (string, e
 	expirationTime := time.Now().Add(24 * time.Hour)
 	newJwt := jwt.MapClaims{"user_id": user.ID, "exp": expirationTime.Unix()}
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, newJwt)
-	secret := []byte("my-jwt-secret")
+	secret := os.Getenv("JWT_SECRET")
+
+	if secret == "" {
+		return "", errors.New("JWT_SECRET is not configured")
+	}
 	jwtTokenString, errJwt := jwtToken.SignedString(secret)
 	if errJwt != nil {
 		return "", errJwt

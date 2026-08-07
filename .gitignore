@@ -5,7 +5,7 @@
 *.exe
 *.log
 *.tmp
-
+.env
 # Mac
 .DS_Store
 

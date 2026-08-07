@@ -1,6 +1,7 @@
 package main
 
 import (
+	""
 	"Tamrin/tasks/internal/handler"
 	"Tamrin/tasks/internal/middleware"
 	"Tamrin/tasks/internal/repository/postgres"
@@ -8,10 +9,17 @@ import (
 	"Tamrin/tasks/pkg/db"
 	"context"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+	"log"
 	"time"
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("error loading .env file")
+	}
+
 	newDb := db.InitDB()
 	taskRepo := postgres.NewRepo(newDb)
 	userRepo := postgres.NewUserRepo(newDb)
