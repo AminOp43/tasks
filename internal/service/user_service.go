@@ -50,9 +50,9 @@ func (u *UserServ) Login(ctx context.Context, req domain.AuthRequest) (string, e
 	if secret == "" {
 		return "", errors.New("JWT_SECRET is not configured")
 	}
-	jwtTokenString, errJwt := jwtToken.SignedString(secret)
-	if errJwt != nil {
-		return "", errJwt
+	tokenString, err := jwtToken.SignedString([]byte(secret))
+	if err != nil {
+		return "", err
 	}
-	return jwtTokenString, nil
+	return tokenString, nil
 }

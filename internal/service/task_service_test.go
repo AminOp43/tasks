@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-type MockRepo struct {
+type MockTaskRepo struct {
 	GetAllFunc  func(ctx context.Context, userID int64) ([]domain.Task, error)
 	GetByIdFunc func(ctx context.Context, id int, userID int64) (domain.Task, error)
 	CreateFunc  func(ctx context.Context, task domain.Task, userID int64) (int64, error)
@@ -16,42 +16,42 @@ type MockRepo struct {
 	DeleteFunc  func(ctx context.Context, id int, userID int64) error
 }
 
-func (m *MockRepo) GetAll(ctx context.Context, userID int64) ([]domain.Task, error) {
+func (m *MockTaskRepo) GetAll(ctx context.Context, userID int64) ([]domain.Task, error) {
 	if m.GetAllFunc != nil {
 		return m.GetAllFunc(ctx, userID)
 	}
 	return nil, nil
 }
 
-func (m *MockRepo) GetById(ctx context.Context, id int, userID int64) (domain.Task, error) {
+func (m *MockTaskRepo) GetById(ctx context.Context, id int, userID int64) (domain.Task, error) {
 	if m.GetByIdFunc != nil {
 		return m.GetByIdFunc(ctx, id, userID)
 	}
 	return domain.Task{}, nil
 }
 
-func (m *MockRepo) Create(ctx context.Context, task domain.Task, userID int64) (int64, error) {
+func (m *MockTaskRepo) Create(ctx context.Context, task domain.Task, userID int64) (int64, error) {
 	if m.CreateFunc != nil {
 		return m.CreateFunc(ctx, task, userID)
 	}
 	return 0, nil
 }
 
-func (m *MockRepo) Update(ctx context.Context, task domain.Task, id int, userID int64) error {
+func (m *MockTaskRepo) Update(ctx context.Context, task domain.Task, id int, userID int64) error {
 	if m.UpdateFunc != nil {
 		return m.UpdateFunc(ctx, task, id, userID)
 	}
 	return nil
 }
 
-func (m *MockRepo) Delete(ctx context.Context, id int, userID int64) error {
+func (m *MockTaskRepo) Delete(ctx context.Context, id int, userID int64) error {
 	if m.DeleteFunc != nil {
 		return m.DeleteFunc(ctx, id, userID)
 	}
 	return nil
 }
 func TestTaskService_GetAll_Success(t *testing.T) {
-	mockRepo := &MockRepo{
+	mockRepo := &MockTaskRepo{
 		GetAllFunc: func(ctx context.Context, userID int64) ([]domain.Task, error) {
 			return []domain.Task{{Title: "title test", Description: "desc test", Status: "pending"}}, nil
 		},
@@ -71,7 +71,7 @@ func TestTaskService_GetAll_Success(t *testing.T) {
 	t.Log(tasks)
 }
 func TestTaskService_GetByID_Success(t *testing.T) {
-	mockRepo := &MockRepo{
+	mockRepo := &MockTaskRepo{
 		GetByIdFunc: func(ctx context.Context, id int, userID int64) (domain.Task, error) {
 			return domain.Task{
 				ID:          1,
@@ -95,7 +95,7 @@ func TestTaskService_GetByID_Success(t *testing.T) {
 	t.Log(task)
 }
 func TestTaskService_Create_Success(t *testing.T) {
-	mockRepo := &MockRepo{
+	mockRepo := &MockTaskRepo{
 		CreateFunc: func(ctx context.Context, task domain.Task, userID int64) (int64, error) {
 			return 1, nil
 		},
@@ -116,7 +116,7 @@ func TestTaskService_Create_Success(t *testing.T) {
 	t.Log(task)
 }
 func TestTaskService_Update_Success(t *testing.T) {
-	mockRepo := &MockRepo{
+	mockRepo := &MockTaskRepo{
 		UpdateFunc: func(ctx context.Context, task domain.Task, id int, userID int64) error {
 			return nil
 		},
@@ -134,7 +134,7 @@ func TestTaskService_Update_Success(t *testing.T) {
 	t.Logf("succesfully updated : %+v", task)
 }
 func TestTaskService_Delete_Success(t *testing.T) {
-	mockRepo := &MockRepo{
+	mockRepo := &MockTaskRepo{
 		DeleteFunc: func(ctx context.Context, id int, userID int64) error {
 			return nil
 		},
@@ -147,7 +147,7 @@ func TestTaskService_Delete_Success(t *testing.T) {
 	t.Log("successfully deleted")
 }
 func TestTaskService_GetByID_NotFound(t *testing.T) {
-	mockRepo := &MockRepo{
+	mockRepo := &MockTaskRepo{
 		GetByIdFunc: func(ctx context.Context, id int, userID int64) (domain.Task, error) {
 			return domain.Task{}, sql.ErrNoRows
 		},
@@ -160,7 +160,7 @@ func TestTaskService_GetByID_NotFound(t *testing.T) {
 	t.Log(" GetById not found test passed!")
 }
 func TestTaskService_Update_NotFound(t *testing.T) {
-	mockRepo := &MockRepo{
+	mockRepo := &MockTaskRepo{
 		UpdateFunc: func(ctx context.Context, task domain.Task, id int, userID int64) error {
 			return sql.ErrNoRows
 		},
@@ -178,7 +178,7 @@ func TestTaskService_Update_NotFound(t *testing.T) {
 	t.Log(" Update not found test passed!")
 }
 func TestTaskService_Delete_NotFound(t *testing.T) {
-	mockRepo := &MockRepo{
+	mockRepo := &MockTaskRepo{
 		DeleteFunc: func(ctx context.Context, id int, userID int64) error {
 			return sql.ErrNoRows
 		},
