@@ -36,7 +36,9 @@ func (r *RepoStruct) GetAll(ctx context.Context, userID int64) ([]domain.Task, e
 
 func (r *RepoStruct) GetById(ctx context.Context, id int, userID int64) (domain.Task, error) {
 	var task domain.Task
-	err := r.db.QueryRowContext(ctx, "SELECT id, title, description, status, created_at FROM tasks WHERE id=$1 AND user_id=$2", id, userID).Scan(&task.ID, &task.Title, &task.Description, &task.Status, &task.CreatedAt)
+	err := r.db.QueryRowContext(ctx,
+		"SELECT id, title, description, status, created_at FROM tasks WHERE id=$1 AND user_id=$2",
+		id, userID).Scan(&task.ID, &task.Title, &task.Description, &task.Status, &task.CreatedAt)
 	if err != nil {
 		return task, err
 	}

@@ -3,203 +3,193 @@ package postgres
 import (
 	"Tamrin/tasks/internal/domain"
 	"context"
-	"database/sql"
-	"fmt"
+	"github.com/DATA-DOG/go-sqlmock"
 	_ "github.com/lib/pq"
-	"os"
+	"regexp"
 	"testing"
+	"time"
 )
 
-var testDB *sql.DB
-
-func TestMain(m *testing.M) {
-	connStr := "user=postgres dbname=test_db password=12345678 sslmode=disable"
-	var err error
-	testDB, err = sql.Open("postgres", connStr)
-	if err != nil {
-		panic("can't connect to test database: " + err.Error())
-	}
-	defer testDB.Close()
-	_, err = testDB.Exec(`
-    CREATE TABLE IF NOT EXISTS tasks (
-        id SERIAL PRIMARY KEY,
-        title TEXT NOT NULL,
-        description TEXT,
-        status TEXT DEFAULT 'pending',
-        created_at TIMESTAMP DEFAULT NOW()
-    );
-`)
-	if err != nil {
-		panic("can't create table: " + err.Error())
-	}
-	code := m.Run()
-	testDB.Exec(`DROP TABLE tasks;`)
-	os.Exit(code)
-}
-func cleanDB(t *testing.T) {
-	_, err := testDB.Exec("DELETE FROM tasks")
-	if err != nil {
-		t.Errorf("can't clean database: %v", err)
-	}
-}
 func TestCreateTask(t *testing.T) {
-	cleanDB(t)
-	repo := NewRepo(testDB)
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("can't create mock database: %v", err)
+	}
+	defer db.Close()
+	repo := NewRepo(db)
 	task := domain.Task{
 		Title:       "test task",
 		Description: "test description",
 		Status:      "pending",
 	}
-	ctx := context.Background()
-	integer, err := repo.Create(ctx, task)
+	query := `
+		INSERT INTO tasks
+			(title, user_id, description, status)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id
+	`
+	mock.ExpectQuery(regexp.QuoteMeta(query)).
+		WithArgs(
+			task.Title,
+			int64(1),
+			task.Description,
+			task.Status,
+		).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"id"}).
+				AddRow(1),
+		)
+	id, err := repo.Create(context.Background(), task, 1)
 	if err != nil {
-		t.Errorf("can't create task: %v", err)
-		return
+		t.Fatalf("expected no error, got %v", err)
 	}
-	if integer == 0 {
-		t.Errorf("integer should be greater than zero")
-		return
+	if id != 1 {
+		t.Errorf("expected ID 1, got %d", id)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("database expectations were not met: %v", err)
 	}
 }
 func TestGetTaskByID(t *testing.T) {
-	cleanDB(t)
-	repo := NewRepo(testDB)
-	ctx := context.Background()
-	task := domain.Task{
-		Title:       "test task",
-		Description: "test description",
-		Status:      "pending",
-	}
-	integer, err := repo.Create(ctx, task)
+	db, mock, err := sqlmock.New()
 	if err != nil {
-		t.Errorf("can't create task: %v", err)
-		return
+		t.Fatalf("can't create mock database: %v", err)
 	}
-	taskByID, err := repo.GetById(ctx, integer)
+	defer db.Close()
+	repo := NewRepo(db)
+	query := `
+		SELECT id, title, description, status, created_at 
+		FROM tasks 
+		WHERE id=$1 AND user_id=$2
+	`
+	createdAt := time.Now()
+	mock.ExpectQuery(regexp.QuoteMeta(query)).
+		WithArgs(1, int64(1)).
+		WillReturnRows(
+			sqlmock.NewRows(
+				[]string{
+					"id",
+					"title",
+					"description",
+					"status",
+					"created_at",
+				},
+			).AddRow(
+				1,
+				"test task",
+				"test description",
+				"pending",
+				createdAt,
+			),
+		)
+	task, err := repo.GetById(context.Background(), 1, 1)
 	if err != nil {
-		t.Errorf("can't get task by id: %v", err)
-		return
+		t.Fatalf("can't get task by id: %v", err)
 	}
-	fmt.Println(taskByID)
+
+	if task.ID != 1 {
+		t.Errorf("expected ID 1, got %d", task.ID)
+	}
+
+	if task.Title != "test task" {
+		t.Errorf(
+			"expected title %q, got %q",
+			"test task",
+			task.Title,
+		)
+	}
+	if task.Description != "test description" {
+		t.Errorf(
+			"expected description %q, got %q",
+			"test description",
+			task.Description,
+		)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("database expectations were not met: %v", err)
+	}
 }
 func TestGetAllTask(t *testing.T) {
-	cleanDB(t)
-	repo := NewRepo(testDB)
-	ctx := context.Background()
-	task := domain.Task{
-		Title:       "test task",
-		Description: "test description",
-		Status:      "pending",
-	}
-	task2 := domain.Task{
-		Title:       "test2 task",
-		Description: "test2 description",
-		Status:      "pending",
-	}
-	task3 := domain.Task{
-		Title:       "test3 task",
-		Description: "test3 description",
-		Status:      "pending",
-	}
-	integer, err := repo.Create(ctx, task)
+	db, mock, err := sqlmock.New()
 	if err != nil {
-		t.Errorf("can't create task: %v", err)
-		return
+		t.Fatalf("can't create mock database: %v", err)
 	}
-	if integer == 0 {
-		t.Errorf("integer should be greater than zero")
-		return
-	}
-	integer, err = repo.Create(ctx, task2)
+	defer db.Close()
+	repo := NewRepo(db)
+	createdAt := time.Now()
+	query := `SELECT id, title, description, status, created_at FROM tasks WHERE user_id=$1`
+	mock.ExpectQuery(regexp.QuoteMeta(query)).
+		WithArgs(int64(1)).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"id", "title", "description", "status", "created_at"}).
+				AddRow(1, "test task", "test description", "pending", createdAt),
+		)
+	tasks, err := repo.GetAll(context.Background(), 1)
 	if err != nil {
-		t.Errorf("can't create task: %v", err)
-		return
+		t.Fatalf("can't get all tasks: %v", err)
 	}
-	if integer == 0 {
-		t.Errorf("integer should be greater than zero")
-		return
+	if len(tasks) != 1 {
+		t.Fatalf("expected 1 task, got %d", len(tasks))
 	}
-	integer, err = repo.Create(ctx, task3)
-	if err != nil {
-		t.Errorf("can't create task: %v", err)
-		return
+
+	if tasks[0].ID != 1 {
+		t.Errorf("expected ID 1, got %d", tasks[0].ID)
 	}
-	if integer == 0 {
-		t.Errorf("integer should be greater than zero")
-		return
+
+	if tasks[0].Title != "test task" {
+		t.Errorf(
+			"expected title %q, got %q",
+			"test task",
+			tasks[0].Title,
+		)
 	}
-	tasks, err := repo.GetAll(ctx)
-	if err != nil {
-		t.Errorf("can't get all tasks: %v", err)
-		return
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("database expectations were not met: %v", err)
 	}
-	if len(tasks) == 0 {
-		t.Errorf("no tasks found")
-		return
-	}
-	fmt.Println(tasks)
 }
 func TestUpdateTask(t *testing.T) {
-	cleanDB(t)
-	repo := NewRepo(testDB)
-	ctx := context.Background()
-
-	// ۱. یک تسک بساز
-	task := domain.Task{
-		Title:       "before update",
-		Description: "before description",
-		Status:      "pending",
-	}
-	id, err := repo.Create(ctx, task)
+	db, mock, err := sqlmock.New()
 	if err != nil {
-		t.Fatalf("can't create task: %v", err)
+		t.Fatalf("can't create mock database: %v", err)
 	}
-
-	// ۲. تغییرات رو اعمال کن
-	task.Title = "after update"
-	task.Description = "after description"
-	task.Status = "done"
-
-	err = repo.Update(ctx, task, id)
+	defer db.Close()
+	repo := NewRepo(db)
+	task := domain.Task{
+		Title:       "test updated task",
+		Description: "test updated description",
+		Status:      "updated pending"}
+	query := `UPDATE tasks SET title=$1, description=$2, status=$3 WHERE id=$4 AND user_id=$5`
+	mock.ExpectExec(regexp.QuoteMeta(query)).
+		WithArgs(
+			task.Title,
+			task.Description,
+			task.Status,
+			1,
+			int64(1),
+		).WillReturnResult(sqlmock.NewResult(0, 1))
+	err = repo.Update(context.Background(), task, 1, 1)
 	if err != nil {
 		t.Fatalf("can't update task: %v", err)
 	}
-
-	// ۳. تغییرات رو چک کن
-	updated, err := repo.GetById(ctx, id)
-	if err != nil {
-		t.Fatalf("can't get task: %v", err)
-	}
-
-	if updated.Title != task.Title {
-		t.Errorf("expected title %q, got %q", task.Title, updated.Title)
-	}
-	if updated.Description != task.Description {
-		t.Errorf("expected description %q, got %q", task.Description, updated.Description)
-	}
-	if updated.Status != task.Status {
-		t.Errorf("expected status %q, got %q", task.Status, updated.Status)
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("database expectations were not met: %v", err)
 	}
 }
 func TestDeleteTask(t *testing.T) {
-	cleanDB(t)
-	repo := NewRepo(testDB)
-	ctx := context.Background()
-	task := domain.Task{
-		Title:       "test task",
-		Description: "test description",
-		Status:      "pending",
-	}
-	id, err := repo.Create(ctx, task)
+	db, mock, err := sqlmock.New()
 	if err != nil {
-		t.Fatalf("can't create task: %v", err)
-		return
+		t.Fatalf("can't create mock database: %v", err)
 	}
-	fmt.Println(id)
-	err = repo.Delete(ctx, id)
+	defer db.Close()
+	repo := NewRepo(db)
+	query := `DELETE FROM tasks WHERE id=$1 AND user_id=$2`
+	mock.ExpectExec(regexp.QuoteMeta(query)).WithArgs(1, int64(1)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	err = repo.Delete(context.Background(), 1, 1)
 	if err != nil {
 		t.Fatalf("can't delete task: %v", err)
-		return
 	}
-	fmt.Println("task deleted")
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("database expectations were not met: %v", err)
+	}
 }
